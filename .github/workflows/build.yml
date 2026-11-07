@@ -26,7 +26,6 @@ jobs:
 
     - name: Setup Project Structure
       run: |
-        # 修改了包名路径为 com/point/transport
         mkdir -p app/src/main/java/com/point/transport
         mkdir -p app/src/main/res/values
         mkdir -p app/src/main/res/mipmap-xxxhdpi
@@ -34,7 +33,6 @@ jobs:
 
     - name: Generate App Icon
       run: |
-        # 直接复制你上传的图片作为图标
         cp app_icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
     - name: Create App Config
@@ -54,7 +52,7 @@ jobs:
         }
         EOF
 
-        # 修改了包名为 com.point.transport
+        # 【修改点】：versionCode 改为 3，versionName 改为 "0.0.3.1"
         cat > app/build.gradle << 'EOF'
         apply plugin: 'com.android.application'
         android {
@@ -64,8 +62,8 @@ jobs:
                 applicationId "com.point.transport"
                 minSdk 24
                 targetSdk 34
-                versionCode 1
-                versionName "1.0"
+                versionCode 3
+                versionName "0.0.3.1"
             }
             buildTypes {
                 release {
@@ -84,7 +82,7 @@ jobs:
             <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
             <application
                 android:allowBackup="true"
-                android:label="光遇传送点"
+                android:label="SkyPortal"
                 android:icon="@mipmap/ic_launcher"
                 android:supportsRtl="true"
                 android:theme="@android:style/Theme.NoTitleBar">
@@ -102,7 +100,6 @@ jobs:
 
     - name: Create WebView Activity with FileChooser Fix
       run: |
-        # 生成了新的包名下的 Java 文件，并保留了纯净文件选择器逻辑
         cat > app/src/main/java/com/point/transport/MainActivity.java << 'EOF'
         package com.point.transport;
 
@@ -143,7 +140,6 @@ jobs:
                         Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                         intent.addCategory(Intent.CATEGORY_OPENABLE);
                         intent.setType("*/*");
-                        // 限制只显示文本和 JSON，过滤掉相册等无关应用
                         String[] mimeTypes = {"application/json", "text/plain", "text/*"};
                         intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
                         
@@ -189,7 +185,6 @@ jobs:
 
     - name: Copy Frontend Files to Assets
       run: |
-        # 复制网页前端文件和在线词典
         cp index.html app/src/main/assets/index.html
         cp online_dict.json app/src/main/assets/online_dict.json
 
