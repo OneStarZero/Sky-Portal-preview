@@ -31,9 +31,11 @@ jobs:
         mkdir -p app/src/main/res/mipmap-xxxhdpi
         mkdir -p app/src/main/assets
 
-    - name: Generate App Icon
+    - name: Generate App Icon (极限压缩)
       run: |
-        cp app_icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+        sudo apt-get update && sudo apt-get install -y imagemagick
+        # 强制把图片压缩成 192x192 的 png，多余像素全部删掉
+        convert app_icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
     - name: Create App Config
       run: |
@@ -52,7 +54,7 @@ jobs:
         }
         EOF
 
-        # 【修改点】：versionCode 改为 3，versionName 改为 "0.0.3.1"
+        # 【瘦身核心】：开启代码压缩、资源压缩，移除无用架构
         cat > app/build.gradle << 'EOF'
         apply plugin: 'com.android.application'
         android {
@@ -64,15 +66,26 @@ jobs:
                 targetSdk 34
                 versionCode 3
                 versionName "0.0.3.1"
+                ndk {
+                    abiFilters 'armeabi-v7a', 'arm64-v8a'
+                }
             }
             buildTypes {
                 release {
-                    minifyEnabled false
+                    minifyEnabled true
+                    shrinkResources true
+                    proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
                 }
             }
         }
         dependencies {
         }
+        EOF
+
+        # 创建空的混淆规则文件
+        cat > app/proguard-rules.pro << 'EOF'
+        -dontwarn android.**
+        -keep class com.point.transport.** { *; }
         EOF
 
         cat > app/src/main/AndroidManifest.xml << 'EOF'
@@ -137,16 +150,21 @@ jobs:
                         }
                         MainActivity.this.filePathCallback = filePathCallback;
                         
-                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                        // 【纯净选择器】：强制使用 ACTION_OPEN_DOCUMENT 唤起系统纯净文件管理器
+                        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                         intent.addCategory(Intent.CATEGORY_OPENABLE);
                         intent.setType("*/*");
+                        
+                        // 过滤掉相册等无关应用
                         String[] mimeTypes = {"application/json", "text/plain", "text/*"};
                         intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
                         
-                        Intent chooser = Intent.createChooser(intent, "请选择文件管理器");
+                        // 默认打开 Download 目录
+                        Uri initialUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3ADownload");
+                        intent.putExtra("android.provider.extra.INITIAL_URI", initialUri);
                         
                         try {
-                            startActivityForResult(chooser, FILE_CHOOSER_REQUEST_CODE);
+                            startActivityForResult(intent, FILE_CHOOSER_REQUEST_CODE);
                         } catch (Exception e) {
                             MainActivity.this.filePathCallback = null;
                             return false;
@@ -191,8 +209,12 @@ jobs:
     - name: Build with Gradle
       run: gradle assembleRelease
 
+    - name: Rename APK
+      run: |
+        mv app/build/outputs/apk/release/app-release-unsigned.apk app/build/outputs/apk/release/SkyPortal_v0.0.3.1.apk
+
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: SkyPortal-APK
-        path: app/build/outputs/apk/release/app-release-unsigned.apk
+        path: app/build/outputs/apk/release/SkyPortal_v0.0.3.1.apk
