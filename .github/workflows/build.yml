@@ -1,0 +1,23 @@
+name: Build APK
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build APK
+        uses: darkshredder/web-to-app-action@v1
+        with:
+          app_name: "Sky node resolution"
+          package_name: "com.sky.jsonparser"
+          web_dir: "./"
+          icon: "" 
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: App-APK
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
