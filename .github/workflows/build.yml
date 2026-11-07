@@ -22,7 +22,6 @@ jobs:
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v3
       with:
-        # 强制指定使用稳定版本的 Gradle，防止下载最新的 9.x 导致报错
         gradle-version: '8.4'
 
     - name: Setup Project Structure
@@ -48,6 +47,7 @@ jobs:
         }
         EOF
 
+        # 注意这里：去掉了 appcompat 依赖，只保留最纯粹的系统原生
         cat > app/build.gradle << 'EOF'
         apply plugin: 'com.android.application'
         android {
@@ -67,7 +67,6 @@ jobs:
             }
         }
         dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
         }
         EOF
 
@@ -78,7 +77,7 @@ jobs:
                 android:allowBackup="true"
                 android:label="光遇传送点"
                 android:supportsRtl="true"
-                android:theme="@style/Theme.AppCompat.NoActionBar">
+                android:theme="@android:style/Theme.NoTitleBar">
                 <activity
                     android:name=".MainActivity"
                     android:exported="true">
@@ -93,16 +92,17 @@ jobs:
 
     - name: Create WebView Activity
       run: |
+        # 原生的 Activity，不继承 AppCompatActivity
         cat > app/src/main/java/com/sky/jsonparser/MainActivity.java << 'EOF'
         package com.sky.jsonparser;
 
+        import android.app.Activity;
         import android.os.Bundle;
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
-        import androidx.appcompat.app.AppCompatActivity;
 
-        public class MainActivity extends AppCompatActivity {
+        public class MainActivity extends Activity {
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
@@ -112,7 +112,6 @@ jobs:
                 webSettings.setDomStorageEnabled(true);
                 webView.setWebViewClient(new WebViewClient());
                 
-                // 加载本地的 index.html
                 webView.loadUrl("file:///android_asset/index.html");
                 setContentView(webView);
             }
