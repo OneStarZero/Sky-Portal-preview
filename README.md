@@ -34,5 +34,8 @@ SkyModelViewer-Android:https://github.com/XianXiaoWei/SkyModelViewer-Android
 
 
 
-### 📱 界面预览
-![界面预览](screenshot.jpg)
+## 📱 界面预览
+
+<div align="center">
+  <img src="screenshot.jpg" width="300" alt="SkyPortal 预览">
+</div>
