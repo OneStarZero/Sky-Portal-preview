@@ -1,5 +1,12 @@
 # Sky-Portal-preview
 A Sky teleport point previewer that works with the Sky Model Viewer
+![icon](icon.png)
+
+### 📥 下载安装
+1. 前往本仓库右侧的 **[Releases](../../releases)** 页面。
+2. 找到最新版本（Latest）
+3. 安装即可直接使用。
+
 这个软件需要搭配SkyModelViewer或SkyModelViewer-Android使用❗️
 
 This software needs to be used with Sky Model Viewer or SkyModel Viewer-Android❗️
