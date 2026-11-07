@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>光遇传送点解析</title>
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --card-bg: rgba(30, 30, 38, 0.85); /* 改用极高性能的纯色半透明 */
+            --text-main: #ffffff;
+            --text-sub: #a0a0b0;
+            --accent-green: #00ffaa;
+            --accent-red: #ff4466;
+            --btn-blue: #3a66ff;
+            --border-radius: 16px;
+        }
+
+        * { 
+            box-sizing: border-box; margin: 0; padding: 0; 
+            -webkit-tap-highlight-color: transparent; 
+            -webkit-touch-callout: none;
+        }
+        
+        html, body {
+            height: 100%; overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            display: flex; flex-direction: column;
+            /* 【性能核弹】开启全局硬件加速 */
+            transform: translate3d(0,0,0);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* ================= 极光背景 (极低成本 GPU 动画) ================= */
+        .aurora-bg {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            z-index: -1; overflow: hidden; pointer-events: none;
+            opacity: 0.4;
+        }
+        .aurora-blob {
+            position: absolute; border-radius: 50%;
+            /* 降低模糊半径以节省 GPU */
+            filter: blur(40px); 
+            animation: float 20s infinite alternate ease-in-out;
+            will-change: transform; 
+            transform: translate3d(0,0,0);
+        }
+        .blob-1 { width: 200px; height: 200px; background: #00ffaa; top: -5%; left: -5%; }
+        .blob-2 { width: 250px; height: 250px; background: #3a66ff; bottom: 5%; right: -10%; animation-delay: -7s; }
+        
+        @keyframes float {
+            0% { transform: translate3d(0, 0, 0) scale(1); }
+            100% { transform: translate3d(40px, 60px, 0) scale(1.1); }
+        }
+
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        .top-bar {
+            flex-shrink: 0; padding: 15px 15px 10px 15px; padding-top: max(15px, env(safe-area-inset-top)); z-index: 10;
+        }
+
+        .btn-import {
+            width: 100%; background: linear-gradient(135deg, #3a66ff, #6a33ff); color: white;
+            border: none; padding: 16px; font-size: 16px; font-weight: bold; border-radius: var(--border-radius);
+            box-shadow: 0 4px 10px rgba(58, 102, 255, 0.2);
+            transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translate3d(0,0,0);
+        }
+        .btn-import:active { transform: scale(0.95) translate3d(0,0,0); }
+
+        /* ================= 核心列表区 ================= */
+        .list-container {
+            flex: 1; overflow-y: auto; padding: 0 15px 10px 15px;
+            position: relative;
+        }
+
+        /* ================= 高定卡片 ================= */
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--border-radius);
+            padding: 18px; margin-bottom: 14px; position: relative; overflow: hidden;
+            
+            /* 【性能核心】只对 transform 做动画 */
+            transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transform: translate3d(0,0,0);
+            will-change: transform;
+            
+            /* 用 inset 阴影替换边框，避免重排 */
+            box-shadow: inset 4px 0 0 0 transparent;
+        }
+        .card:active { transform: scale(0.94) translate3d(0,0,0); }
+        
+        @keyframes slideIn {
+            0% { opacity: 0; transform: translate3d(0, 30px, 0) scale(0.95); }
+            100% { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+        }
+        .card-anim { animation: slideIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+
+        /* 使用内阴影实现边框，避免触发布局重绘 */
+        .card.enabled { box-shadow: inset 4px 0 0 0 var(--accent-green); }
+        .card.disabled { box-shadow: inset 4px 0 0 0 var(--accent-red); }
+
+        .card-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; word-break: break-all; }
+        .card.enabled .card-title { color: var(--accent-green); }
+        .card.disabled .card-title { color: var(--accent-red); }
+
+        .card-level { font-size: 14px; color: var(--text-sub); margin-bottom: 8px; }
+        .card-coord { font-size: 14px; font-family: monospace; color: #ccc; background: rgba(0,0,0,0.2); padding: 6px 10px; border-radius: 8px; display: inline-block; }
+        .card-coord span { color: #fff; font-weight: bold; }
+
+        /* ================= 底部与搜索 ================= */
+        .search-bar { flex-shrink: 0; padding: 0 15px 10px 15px; display: none; }
+        .search-input-wrap {
+            background: var(--card-bg); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: var(--border-radius); display: flex; align-items: center; padding: 0 15px;
+            transition: border-color 0.2s;
+        }
+        .search-input-wrap:focus-within { border-color: var(--btn-blue); }
+        .search-input-wrap input { flex: 1; background: transparent; border: none; color: white; padding: 15px 0; font-size: 15px; outline: none; }
+        .btn-clear { background: none; border: none; color: #888; font-size: 20px; padding: 10px; display: none; }
+
+        .tabs {
+            flex-shrink: 0; padding: 10px 15px; padding-bottom: max(15px, env(safe-area-inset-bottom));
+            display: none; gap: 12px; 
+            background: var(--bg-color); /* 移除渐变，用纯色提升性能 */
+        }
+        .tab-btn {
+            flex: 1; padding: 16px; border: none; border-radius: var(--border-radius);
+            font-size: 15px; font-weight: bold; background: var(--card-bg);
+            color: #888; border: 1px solid rgba(255,255,255,0.05); 
+            transition: transform 0.15s, background-color 0.2s, color 0.2s;
+            transform: translate3d(0,0,0);
+        }
+        .tab-btn:active { transform: scale(0.95) translate3d(0,0,0); }
+        .tab-btn.active-avail { background: rgba(0, 255, 170, 0.1); color: var(--accent-green); border-color: rgba(0, 255, 170, 0.2); }
+        .tab-btn.active-dis { background: rgba(255, 68, 102, 0.1); color: var(--accent-red); border-color: rgba(255, 68, 102, 0.2); }
+
+        .toast {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+            background: rgba(40, 40, 50, 0.95);
+            color: white; padding: 16px 32px; border-radius: 40px; font-size: 16px; font-weight: bold;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.2s, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            z-index: 999;
+            will-change: transform, opacity;
+        }
+        .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        /* 涟漪优化：只改变透明度，取消耗性能的缩放 */
+        .ripple {
+            position: absolute; border-radius: 50%; background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(0); animation: ripple-anim 0.4s ease-out; pointer-events: none;
+            will-change: transform, opacity;
+        }
+        @keyframes ripple-anim { to { transform: scale(4); opacity: 0; } }
+
+        .skeleton {
+            background: #1a1a20; border-radius: var(--border-radius); height: 110px; margin-bottom: 14px;
+            position: relative; overflow: hidden;
+        }
+        .skeleton::after {
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            animation: shimmer 1.2s infinite;
+            transform: translate3d(-100%, 0, 0);
+        }
+        @keyframes shimmer { 100% { transform: translate3d(100%, 0, 0); } }
+    </style>
+</head>
+<body>
+
+    <div class="aurora-bg">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+    </div>
+
+    <div class="top-bar">
+        <button class="btn-import" id="importBtn">📂 导入光遇 JSON 文件</button>
+        <input type="file" id="fileInput" accept="*/*" style="display: none;">
+    </div>
+
+    <div class="list-container" id="listContainer"></div>
+
+    <div class="search-bar" id="searchBar">
+        <div class="search-input-wrap">
+            <input type="text" id="searchInput" placeholder="搜索传送点或目的地...">
+            <button class="btn-clear" id="btnClear">×</button>
+        </div>
+    </div>
+
+    <div class="tabs" id="tabs">
+        <button class="tab-btn active-avail" id="tabAvail">可用传送点 (0)</button>
+        <button class="tab-btn" id="tabDis">禁用传送点 (0)</button>
+    </div>
+
+    <div class="toast" id="toast">已复制到剪贴板！</div>
+
+    <script>
+        // ================= 性能级音频控制 =================
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+        let lastPlayTime = 0;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioContext();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const now = Date.now();
+            if (now - lastPlayTime < 120) return; // 防抖
+            lastPlayTime = now;
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const t = audioCtx.currentTime;
+
+            switch(type) {
+                case 'tap': osc.type='sine'; osc.frequency.setValueAtTime(400,t); osc.frequency.exponentialRampToValueAtTime(600,t+0.05); gain.gain.setValueAtTime(0.15,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.1); osc.start(t); osc.stop(t+0.1); break;
+                case 'success': osc.type='sine'; osc.frequency.setValueAtTime(800,t); osc.frequency.setValueAtTime(1200,t+0.1); gain.gain.setValueAtTime(0.2,t); gain.gain.exponentialRampToValueAtTime(0.01,t+0.3); osc.start(t); osc.stop(t+0.3); break;
+            }
+        }
+
+        // ================= 字典 =================
+        const TRANSLATIONS = {
+            "CandleSpace": "遇境", "Dawn": "晨岛", "Island": "晨岛", "Prairie": "云野",
+            "RainForest": "雨林", "HiddenForest": "雨林·隐藏图", "SunsetVillage": "霞谷·村落",
+            "NightDesert": "暮土·荒漠", "Dusk_Triangle": "禁阁", "Eden": "伊甸", "Eye_of_Eden": "暴风眼",
+            "Prairie_Island": "云野·圣岛", "SanctuaryIslands": "云野·圣岛",
+            "Prairie_ButterflyFields": "云野·蝴蝶平原", "Prairie_Cave": "云野·洞穴",
+            "Prairie_Temple": "云野·神庙", "TGCOffice": "TGC办公室", "Office": "办公室",
+            "SunsetVillage_Winterbreak": "霞谷·村落（冬日）", "SunsetVillage_MusicShop": "霞谷·音乐商店",
+            "Sunset_YetiPark": "霞谷·隐士山谷", "SunsetColiseum": "霞谷·竞技场",
+            "VillageOfDreams": "霞谷·圆梦村", "Hermit_Valley": "霞谷·隐士山谷",
+            "MainStreet_ShopOutfits": "云野·主街服装店", "MainStreet_MusicShop": "云野·主街音乐商店",
+            "MainStreet_DyeShop": "云野·主街染料店", "MainStreet_Cafe": "云野·主街咖啡厅",
+            "MainStreet_PantsShop": "云野·主街裤子店", "MainStreet_ShopSpells": "云野·主街魔法商店",
+            "MainStreet": "云野·主街", "Market": "市集",
+            "Boneyard": "暮土·巨兽荒原", "Battlefield": "暮土·古战场", "Shipwreck": "暮土·沉船",
+            "Forgotten_Ark": "暮土·遗忘方舟", "Starlight_Desert": "禁阁·星漠",
+            "DuskOasis": "禁阁·绿洲", "NightArchive": "暮土·档案馆",
+            "Event_Cinema": "活动·剧场", "Event_Cafe": "活动·咖啡厅",
+            "RainForest_Shelter": "雨林·树屋", "Shelter": "树屋", "Cave": "洞穴", "Temple": "神庙",
+            "OrbitEnd": "伊甸之眼(终点)", "Skyway": "云道"
+        };
+
+        function translateLevel(rawName) {
+            if (!rawName) return "未知";
+            if (TRANSLATIONS[rawName]) return `${rawName} (${TRANSLATIONS[rawName]})`;
+            let cleanName = rawName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+            const sortedKeys = Object.keys(TRANSLATIONS).sort((a, b) => b.length - a.length);
+            for (let key of sortedKeys) {
+                let cleanKey = key.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                if (cleanKey && cleanName.includes(cleanKey)) return `${rawName} (${TRANSLATIONS[key]})`;
+            }
+            return rawName;
+        }
+
+        let parsedData = { enabled: [], disabled: [] };
+        let currentTab = 'enabled';
+
+        const importBtn = document.getElementById('importBtn');
+        const fileInput = document.getElementById('fileInput');
+        const listContainer = document.getElementById('listContainer');
+        const searchBar = document.getElementById('searchBar');
+        const searchInput = document.getElementById('searchInput');
+        const btnClear = document.getElementById('btnClear');
+        const tabs = document.getElementById('tabs');
+        const tabAvail = document.getElementById('tabAvail');
+        const tabDis = document.getElementById('tabDis');
+        const toast = document.getElementById('toast');
+
+        document.body.addEventListener('touchstart', initAudio, { once: true, passive: true });
+        document.body.addEventListener('mousedown', initAudio, { once: true });
+
+        importBtn.addEventListener('click', () => { playSound('tap'); fileInput.click(); });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            listContainer.innerHTML = `<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>`;
+            importBtn.innerText = "⏳ 正在解析...";
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    const data = JSON.parse(event.target.result);
+                    processData(data);
+                    playSound('success');
+                } catch (err) {
+                    alert("解析失败！");
+                    importBtn.innerText = "📂 导入光遇 JSON 文件";
+                    listContainer.innerHTML = "";
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        function processData(data) {
+            parsedData.enabled = [];
+            parsedData.disabled = [];
+            const bstNodes = data.BSTNodes || {};
+
+            for (let key in bstNodes) {
+                let node = bstNodes[key];
+                if (!node || !node.LevelLink) continue;
+                let link = node.LevelLink;
+                let tf = link.transform;
+                if (!tf) continue;
+
+                let mx = 0, my = 0, mz = 0;
+                try {
+                    if (Array.isArray(tf) && tf.length >= 4) {
+                        mx = parseFloat(tf[3][0]); my = parseFloat(tf[3][1]); mz = parseFloat(tf[3][2]);
+                        if (mx === 0 && my === 0 && mz === 0) {
+                            mx = parseFloat(tf[0][3]); my = parseFloat(tf[1][3]); mz = parseFloat(tf[2][3]);
+                        }
+                    }
+                } catch (e) { continue; }
+                if (mx === 0 && my === 0 && mz === 0) continue;
+
+                let item = {
+                    name: link.linkName || "未知",
+                    level: translateLevel(link.levelName || "未知"),
+                    x: mx.toFixed(1), z: my.toFixed(1), y: mz.toFixed(1)
+                };
+
+                if (link.enabled === true || link.enabled === 1 || link.enabled === "true") {
+                    parsedData.enabled.push(item);
+                } else {
+                    parsedData.disabled.push(item);
+                }
+            }
+
+            importBtn.innerText = "✅ 解析完成！点击重新导入";
+            importBtn.style.background = "linear-gradient(135deg, #00b09b, #96c93d)";
+            searchBar.style.display = "block";
+            tabs.style.display = "flex";
+            
+            tabAvail.innerText = `可用 (${parsedData.enabled.length})`;
+            tabDis.innerText = `禁用 (${parsedData.disabled.length})`;
+            
+            switchTab('enabled');
+        }
+
+        tabAvail.addEventListener('click', () => { playSound('tab'); switchTab('enabled'); });
+        tabDis.addEventListener('click', () => { playSound('tab'); switchTab('disabled'); });
+
+        function switchTab(type) {
+            currentTab = type;
+            if (type === 'enabled') {
+                tabAvail.className = "tab-btn active-avail";
+                tabDis.className = "tab-btn";
+            } else {
+                tabAvail.className = "tab-btn";
+                tabDis.className = "tab-btn active-dis";
+            }
+            renderList();
+        }
+
+        // 使用简单的防抖处理搜索，防止高频率按键卡顿
+        let searchTimer;
+        searchInput.addEventListener('input', () => {
+            btnClear.style.display = searchInput.value ? "block" : "none";
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(renderList, 100);
+        });
+
+        btnClear.addEventListener('click', () => {
+            searchInput.value = "";
+            btnClear.style.display = "none";
+            renderList();
+        });
+
+        function renderList() {
+            const fragment = document.createDocumentFragment();
+            let sourceData = currentTab === 'enabled' ? parsedData.enabled : parsedData.disabled;
+            
+            let keyword = searchInput.value.trim().toLowerCase();
+            if (keyword) {
+                sourceData = sourceData.filter(item => 
+                    item.name.toLowerCase().includes(keyword) || item.level.toLowerCase().includes(keyword)
+                );
+            }
+
+            if (sourceData.length === 0) {
+                listContainer.innerHTML = `<div style="text-align:center; color:#666; margin-top:50px;">没有找到匹配的传送点</div>`;
+                return;
+            }
+
+            sourceData.forEach((item, index) => {
+                let card = document.createElement('div');
+                // 限制延迟最大值，超过0.3s的卡片不再等待，直接显示
+                card.className = `card ${currentTab} card-anim`;
+                card.style.animationDelay = `${Math.min(index * 0.015, 0.3)}s`; 
+                
+                card.innerHTML = `
+                    <div class="card-title">[${currentTab === 'enabled' ? '可用' : '不可用'}] ${item.name}</div>
+                    <div class="card-level">目的地：${item.level}</div>
+                    <div class="card-coord">X <span>${item.x}</span> | Z <span>${item.z}</span> | Y <span>${item.y}</span></div>
+                `;
+
+                bindCardEvents(card, item);
+                fragment.appendChild(card);
+            });
+
+            listContainer.innerHTML = "";
+            listContainer.appendChild(fragment);
+        }
+
+        function bindCardEvents(card, item) {
+            let timer;
+            let isSoundPlayed = false;
+
+            const startPress = (e) => {
+                if (isSoundPlayed) return;
+                isSoundPlayed = true;
+                setTimeout(() => { isSoundPlayed = false; }, 150);
+
+                playSound('tap');
+                createRipple(e, card);
+                timer = setTimeout(() => { 
+                    playSound('success'); 
+                    copyToClipboard(item); 
+                }, 1000);
+            };
+            const endPress = () => clearTimeout(timer);
+
+            // 移除 mouse 事件，统一使用 pointer 事件，减少事件监听器数量
+            card.addEventListener('pointerdown', startPress);
+            card.addEventListener('pointerup', endPress);
+            card.addEventListener('pointerleave', endPress);
+            card.addEventListener('pointercancel', endPress);
+            // 兼容部分老旧 WebView
+            if (!window.PointerEvent) {
+                card.addEventListener('touchstart', startPress, {passive: true});
+                card.addEventListener('touchend', endPress);
+                card.addEventListener('touchmove', endPress);
+            }
+        }
+
+        function createRipple(event, card) {
+            const rect = card.getBoundingClientRect();
+            let x, y;
+            if (event.clientX !== undefined) {
+                x = event.clientX - rect.left; y = event.clientY - rect.top;
+            } else if (event.touches && event.touches.length > 0) {
+                x = event.touches[0].clientX - rect.left; y = event.touches[0].clientY - rect.top;
+            } else { return; }
+            
+            const ripple = document.createElement('div');
+            ripple.className = 'ripple';
+            ripple.style.left = `${x}px`; ripple.style.top = `${y}px`;
+            ripple.style.width = ripple.style.height = '150px';
+            ripple.style.marginLeft = '-75px'; ripple.style.marginTop = '-75px';
+            
+            card.appendChild(ripple);
+            setTimeout(() => { if (ripple.parentNode) ripple.parentNode.removeChild(ripple); }, 400);
+        }
+
+        function copyToClipboard(item) {
+            const text = `${item.name} | 目的地: ${item.level} | 坐标: X ${item.x}, Z ${item.z}, Y ${item.y}`;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showToast);
+            } else {
+                let textArea = document.createElement("textarea");
+                textArea.value = text; textArea.style.position = "fixed";
+                document.body.appendChild(textArea); textArea.focus(); textArea.select();
+                try { document.execCommand('copy'); showToast(); } catch (err) {}
+                document.body.removeChild(textArea);
+            }
+        }
+
+        function showToast() {
+            if (navigator.vibrate) navigator.vibrate([30, 50, 30]);
+            toast.classList.add('show');
+            setTimeout(() => { toast.classList.remove('show'); }, 2000);
+        }
+    </script>
+</body>
+</html>
