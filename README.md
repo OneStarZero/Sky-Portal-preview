@@ -15,3 +15,7 @@ Sky Model Viewer:https://github.com/kfhammond/SkyModelViewer
 SkyModelViewer-Android:https://github.com/XianXiaoWei/SkyModelViewer-Android
 
 主要功能🛠️：通过分析SkyModelViewer导出的地图节点JSON文件来找到所有LevelLink(传送点)
+
+
+### 📱 界面预览
+![界面预览](screenshot.jpg)
