@@ -34,7 +34,6 @@ jobs:
     - name: Generate App Icon (极限压缩)
       run: |
         sudo apt-get update && sudo apt-get install -y imagemagick
-        # 强制把图片压缩成 192x192 的 png，多余像素全部删掉
         convert app_icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 
     - name: Create App Config
@@ -54,7 +53,6 @@ jobs:
         }
         EOF
 
-        # 【瘦身核心】：开启代码压缩、资源压缩，移除无用架构
         cat > app/build.gradle << 'EOF'
         apply plugin: 'com.android.application'
         android {
@@ -82,7 +80,6 @@ jobs:
         }
         EOF
 
-        # 创建空的混淆规则文件
         cat > app/proguard-rules.pro << 'EOF'
         -dontwarn android.**
         -keep class com.point.transport.** { *; }
@@ -98,7 +95,7 @@ jobs:
                 android:label="SkyPortal"
                 android:icon="@mipmap/ic_launcher"
                 android:supportsRtl="true"
-                android:theme="@android:style/Theme.NoTitleBar">
+                android:theme="@android:style/Theme.Material.NoActionBar">
                 <activity
                     android:name=".MainActivity"
                     android:exported="true">
@@ -125,6 +122,7 @@ jobs:
         import android.webkit.WebSettings;
         import android.webkit.WebView;
         import android.webkit.WebViewClient;
+        import android.content.res.Configuration;
 
         public class MainActivity extends Activity {
             private WebView webView;
@@ -142,6 +140,14 @@ jobs:
                 webSettings.setAllowContentAccess(true);
                 webView.setWebViewClient(new WebViewClient());
 
+                // 深色模式适配
+                int nightModeFlags = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+                if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                        webSettings.setForceDark(WebSettings.FORCE_DARK_ON);
+                    }
+                }
+
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
                     public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
@@ -150,13 +156,12 @@ jobs:
                         }
                         MainActivity.this.filePathCallback = filePathCallback;
                         
-                        // 【纯净选择器】：强制使用 ACTION_OPEN_DOCUMENT 唤起系统纯净文件管理器
                         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
                         intent.addCategory(Intent.CATEGORY_OPENABLE);
                         intent.setType("*/*");
                         
-                        // 过滤掉相册等无关应用
-                        String[] mimeTypes = {"application/json", "text/plain", "text/*"};
+                        // 纯净选择器：允许文本和未知类型，防止 json 变灰
+                        String[] mimeTypes = {"application/json", "text/plain", "text/*", "application/octet-stream"};
                         intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
                         
                         // 默认打开 Download 目录
