@@ -7,7 +7,6 @@ on:
 
 jobs:
   build:
-    # 回归官方最稳定的 Ubuntu 最新系统
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +21,9 @@ jobs:
 
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v3
+      with:
+        # 强制指定使用稳定版本的 Gradle，防止下载最新的 9.x 导致报错
+        gradle-version: '8.4'
 
     - name: Setup Project Structure
       run: |
@@ -119,7 +121,6 @@ jobs:
 
     - name: Copy HTML to Assets
       run: |
-        # 将你的网页放入安卓资源目录
         cp index.html app/src/main/assets/index.html
 
     - name: Build with Gradle
