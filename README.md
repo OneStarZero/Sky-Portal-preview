@@ -1,7 +1,7 @@
 # Sky-Portal-preview
 一款可与 Sky 模型查看器（Sky Model Viewer）配合使用的 Sky 传送点预览工具
 
-![icon](icon.png)
+![icon](app_icon.png)
 
 ### 📥 下载安装
 1. 前往本仓库右侧的 **[Releases](../../releases)** 页面。
