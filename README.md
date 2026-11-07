@@ -16,8 +16,9 @@
 2. 找到最新版本（Latest）
 3. 安装即可直接使用。
  
- ![version](https://img.shields.io/badge/version-0.0.3.1-brightgreen)
-![Android](https://img.shields.io/badge/Platform-Android-green)
+ ![Platform](https://img.shields.io/badge/Platform-Android-brightgreen)
+![Language](https://img.shields.io/badge/Language-HTML%20%2F%20Java-blue)
+![License](https://img.shields.io/badge/License-MIT-orange)
 
 
 ### ⚠️ 注意事项
