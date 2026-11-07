@@ -1,88 +1,203 @@
-- name: Create WebView Activity with FileChooser Fix
-  run: |
-    cat > app/src/main/java/com/sky/jsonparser/MainActivity.java << 'EOF'
-    package com.sky.jsonparser;
+name: Build Android APK
 
-    import android.app.Activity;
-    import android.content.Intent;
-    import android.net.Uri;
-    import android.os.Bundle;
-    import android.webkit.ValueCallback;
-    import android.webkit.WebChromeClient;
-    import android.webkit.WebSettings;
-    import android.webkit.WebView;
-    import android.webkit.WebViewClient;
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
 
-    public class MainActivity extends Activity {
-        private WebView webView;
-        private ValueCallback<Uri[]> filePathCallback;
-        private static final int FILE_CHOOSER_REQUEST_CODE = 1;
+jobs:
+  build:
+    runs-on: ubuntu-latest
 
-        @Override
-        protected void onCreate(Bundle savedInstanceState) {
-            super.onCreate(savedInstanceState);
-            webView = new WebView(this);
-            WebSettings webSettings = webView.getSettings();
-            webSettings.setJavaScriptEnabled(true);
-            webSettings.setDomStorageEnabled(true);
-            webSettings.setAllowFileAccess(true);
-            webSettings.setAllowContentAccess(true);
-            webView.setWebViewClient(new WebViewClient());
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-            webView.setWebChromeClient(new WebChromeClient() {
-                @Override
-                public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-                    if (MainActivity.this.filePathCallback != null) {
-                        MainActivity.this.filePathCallback.onReceiveValue(null);
-                    }
-                    MainActivity.this.filePathCallback = filePathCallback;
-                    
-                    // 1. 标准文件获取动作
-                    Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                    intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    
-                    // 【核心黑科技】：严格限制文件类型为 JSON 和纯文本，这样相册和相机就会被过滤掉！
-                    intent.setType("*/*");
-                    String[] mimeTypes = {"application/json", "text/plain", "text/*"};
-                    intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
-                    
-                    // 2. 强制拉起系统的应用选择器
-                    Intent chooser = Intent.createChooser(intent, "请选择文件管理器");
-                    
-                    try {
-                        startActivityForResult(chooser, FILE_CHOOSER_REQUEST_CODE);
-                    } catch (Exception e) {
-                        MainActivity.this.filePathCallback = null;
-                        return false;
-                    }
-                    return true;
-                }
-            });
+    - name: Setup JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-            webView.loadUrl("file:///android_asset/index.html");
-            setContentView(webView);
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v3
+      with:
+        gradle-version: '8.4'
+
+    - name: Setup Project Structure
+      run: |
+        # 修改了包名路径为 com/point/transport
+        mkdir -p app/src/main/java/com/point/transport
+        mkdir -p app/src/main/res/values
+        mkdir -p app/src/main/res/mipmap-xxxhdpi
+        mkdir -p app/src/main/assets
+
+    - name: Generate App Icon
+      run: |
+        # 直接复制你上传的图片作为图标
+        cp app_icon.png app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+    - name: Create App Config
+      run: |
+        cat > settings.gradle << 'EOF'
+        rootProject.name = "SkyPortal"
+        include ':app'
+        EOF
+
+        cat > build.gradle << 'EOF'
+        buildscript {
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
         }
+        allprojects {
+            repositories { google(); mavenCentral() }
+        }
+        EOF
 
-        @Override
-        protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-            if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
-                if (filePathCallback == null) return;
-                Uri[] results = null;
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    String dataString = data.getDataString();
-                    if (dataString != null) results = new Uri[]{ Uri.parse(dataString) };
+        # 修改了包名为 com.point.transport
+        cat > app/build.gradle << 'EOF'
+        apply plugin: 'com.android.application'
+        android {
+            namespace 'com.point.transport'
+            compileSdk 34
+            defaultConfig {
+                applicationId "com.point.transport"
+                minSdk 24
+                targetSdk 34
+                versionCode 1
+                versionName "1.0"
+            }
+            buildTypes {
+                release {
+                    minifyEnabled false
                 }
-                filePathCallback.onReceiveValue(results);
-                filePathCallback = null;
-            } else {
-                super.onActivityResult(requestCode, resultCode, data);
             }
         }
-
-        @Override
-        public void onBackPressed() {
-            if (webView.canGoBack()) webView.goBack();
-            else super.onBackPressed();
+        dependencies {
         }
-    }
-    EOF
+        EOF
+
+        cat > app/src/main/AndroidManifest.xml << 'EOF'
+        <?xml version="1.0" encoding="utf-8"?>
+        <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+            package="com.point.transport">
+            <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+            <application
+                android:allowBackup="true"
+                android:label="光遇传送点"
+                android:icon="@mipmap/ic_launcher"
+                android:supportsRtl="true"
+                android:theme="@android:style/Theme.NoTitleBar">
+                <activity
+                    android:name=".MainActivity"
+                    android:exported="true">
+                    <intent-filter>
+                        <action android:name="android.intent.action.MAIN" />
+                        <category android:name="android.intent.category.LAUNCHER" />
+                    </intent-filter>
+                </activity>
+            </application>
+        </manifest>
+        EOF
+
+    - name: Create WebView Activity with FileChooser Fix
+      run: |
+        # 生成了新的包名下的 Java 文件，并保留了纯净文件选择器逻辑
+        cat > app/src/main/java/com/point/transport/MainActivity.java << 'EOF'
+        package com.point.transport;
+
+        import android.app.Activity;
+        import android.content.Intent;
+        import android.net.Uri;
+        import android.os.Bundle;
+        import android.webkit.ValueCallback;
+        import android.webkit.WebChromeClient;
+        import android.webkit.WebSettings;
+        import android.webkit.WebView;
+        import android.webkit.WebViewClient;
+
+        public class MainActivity extends Activity {
+            private WebView webView;
+            private ValueCallback<Uri[]> filePathCallback;
+            private static final int FILE_CHOOSER_REQUEST_CODE = 1;
+
+            @Override
+            protected void onCreate(Bundle savedInstanceState) {
+                super.onCreate(savedInstanceState);
+                webView = new WebView(this);
+                WebSettings webSettings = webView.getSettings();
+                webSettings.setJavaScriptEnabled(true);
+                webSettings.setDomStorageEnabled(true);
+                webSettings.setAllowFileAccess(true);
+                webSettings.setAllowContentAccess(true);
+                webView.setWebViewClient(new WebViewClient());
+
+                webView.setWebChromeClient(new WebChromeClient() {
+                    @Override
+                    public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
+                        if (MainActivity.this.filePathCallback != null) {
+                            MainActivity.this.filePathCallback.onReceiveValue(null);
+                        }
+                        MainActivity.this.filePathCallback = filePathCallback;
+                        
+                        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+                        intent.addCategory(Intent.CATEGORY_OPENABLE);
+                        intent.setType("*/*");
+                        // 限制只显示文本和 JSON，过滤掉相册等无关应用
+                        String[] mimeTypes = {"application/json", "text/plain", "text/*"};
+                        intent.putExtra(Intent.EXTRA_MIME_TYPES, mimeTypes);
+                        
+                        Intent chooser = Intent.createChooser(intent, "请选择文件管理器");
+                        
+                        try {
+                            startActivityForResult(chooser, FILE_CHOOSER_REQUEST_CODE);
+                        } catch (Exception e) {
+                            MainActivity.this.filePathCallback = null;
+                            return false;
+                        }
+                        return true;
+                    }
+                });
+
+                webView.loadUrl("file:///android_asset/index.html");
+                setContentView(webView);
+            }
+
+            @Override
+            protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                if (requestCode == FILE_CHOOSER_REQUEST_CODE) {
+                    if (filePathCallback == null) return;
+                    Uri[] results = null;
+                    if (resultCode == Activity.RESULT_OK && data != null) {
+                        String dataString = data.getDataString();
+                        if (dataString != null) results = new Uri[]{ Uri.parse(dataString) };
+                    }
+                    filePathCallback.onReceiveValue(results);
+                    filePathCallback = null;
+                } else {
+                    super.onActivityResult(requestCode, resultCode, data);
+                }
+            }
+
+            @Override
+            public void onBackPressed() {
+                if (webView.canGoBack()) webView.goBack();
+                else super.onBackPressed();
+            }
+        }
+        EOF
+
+    - name: Copy Frontend Files to Assets
+      run: |
+        # 复制网页前端文件和在线词典
+        cp index.html app/src/main/assets/index.html
+        cp online_dict.json app/src/main/assets/online_dict.json
+
+    - name: Build with Gradle
+      run: gradle assembleRelease
+
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: SkyPortal-APK
+        path: app/build/outputs/apk/release/app-release-unsigned.apk
