@@ -7,10 +7,10 @@ on:
 
 jobs:
   build:
-    # 直接使用自带完整安卓环境的 Docker 镜像，完美避开 SDK 报错
+    # 使用底层系统较新的著名安卓构建镜像
     runs-on: ubuntu-latest
     container:
-      image: androidsdk/android-30:latest
+      image: mingc/android-build-box:latest
 
     steps:
     - name: Checkout Repository
