@@ -1,52 +1,36 @@
-# Sky-Portal-preview
-一款由AI开发的可与 Sky 模型查看器（Sky Model Viewer）配合使用的 Sky 传送点预览工具
-
-![icon](app_icon.png)
-
-
-## 🌟 SkyPortal v0.0.3.1 更新内容
-
-### ✨ 新特性
-- 全新极光暗黑 UI 界面，更护眼、更现代。
-- 智能双引擎词典（断网使用内置词典，联网自动拉取云端最新词库）。
-- 极致精简的文件选择器，自动过滤无关应用，并默认定位到 Download 目录。
-
-### ⚡ 性能优化
-- 开启 R8 代码压缩与资源清理。
-- 移除无用架构，APK 体积大幅缩小。
-
-
-
-### 📥 安装说明
-- 由于修改了包名（`com.point.transport`），如果你是旧版用户，请**先卸载旧版**，再安装本版本。
-
-  
-### 📥 下载安装
-1. 前往本仓库右侧的 **[Releases](../../releases)** 页面。
-2. 找到最新版本（Latest）
-3. 安装即可直接使用。
- 
- ![Platform](https://img.shields.io/badge/Platform-Android-brightgreen)
-![Language](https://img.shields.io/badge/Language-HTML%20%2F%20Java-blue)
-![License](https://img.shields.io/badge/License-MIT-orange)
-
-
-### ⚠️ 注意事项
-这个软件需要搭配SkyModelViewer或SkyModelViewer-Android使用
-
-Sky Model Viewer:https://github.com/kfhammond/SkyModelViewer
-
-SkyModelViewer-Android:https://github.com/XianXiaoWei/SkyModelViewer-Android
-
-
-
-### 🛠️ 主要功能
-通过分析SkyModelViewer导出的地图节点JSON文件来找到所有LevelLink(传送点)
-
-
-
-## 📱 界面预览
-
 <div align="center">
-  <img src="screenshot.jpg" width="300" alt="SkyPortal 预览">
+  <h1>⚠️ 此Ai仓库项目已停止维护并归档 (Deprecated)</h1>
+  
+  <p>感谢大家一直以来对 SkyPortal 网页套壳预览版的支持！</p>
+
+  <p>由于纯网页在浏览器沙箱中受到了极大的安全限制（无法直接读取已安装应用、无法深入扫描分包、无法直接保存文件到本地），导致体验大打折扣。</p>
+
+  <h3>🚀 全新原生完整版已发布！</h3>
+  
+  <a href="https://github.com/OneStarZero/SkyPortal_Android">
+    <img src="https://img.shields.io/badge/点击前往-全新原生版仓库-blue?style=for-the-badge&logo=android" alt="New Repo">
+  </a>
 </div>
+
+---
+
+### 🔗 迁移指向
+
+本仓库的所有功能（包含最新的词典在线更新、精准二进制解析引擎、精美 UI 动画等）均已全部迁移至全新的 Android 原生项目：
+
+👉 **[OneStarZero / SkyPortal_Android](https://github.com/OneStarZero/SkyPortal_Android)**
+
+### ✨ 为什么强烈建议你换用新版？
+
+1. **告别繁琐**：新版 App 可以直接读取手机内已安装的《光·遇》，一键扫描主包和所有分包，不再需要你手动去翻找几百兆的 APK 文件。
+2. **完美解析**：底层解析引擎已 1:1 复刻 Python 权威库，导出 JSON 的大小和结构与原版分毫不差，传送点绝不遗漏。
+3. **系统级导出**：支持直接调起系统文件选择器保存 JSON，而不是被卡在浏览器缓存里。
+4. **完全离线**：解包依赖已全部内置，断网状态下也能正常完成解析。
+
+---
+
+### 📦 如何获取最新版？
+
+请前往新仓库的 **[Releases](https://github.com/OneStarZero/SkyPortal_Android/releases)** 页面，直接下载最新的 `Sky Portal 0.1.0.apk` 或更高版本安装包。
+
+*再次感谢你的支持，我们在新仓库见！*
